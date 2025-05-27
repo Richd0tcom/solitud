@@ -6,10 +6,10 @@ export class SandBox {
     private readonly box: Reference<any>;
 
     constructor(memoryLimit: number) {
-        this.isolate = new Isolate({memoryLimit})
+        this.isolate = new Isolate({ memoryLimit })
         console.log("isooooooo", this.isolate)
         this.context = this.isolate.createContextSync()
-        this.box =  this.context.global
+        this.box = this.context.global
     }
 
     async compileUserScript(userScript: string): Promise<IsolatedVM.Script> {
@@ -17,7 +17,7 @@ export class SandBox {
     }
 
     async runScript(script: IsolatedVM.Script) {
-      return script.run(this.context, {
+        return script.run(this.context, {
             timeout: 5000,
         })
     }
@@ -30,7 +30,27 @@ export class SandBox {
         return result
     }
 
-    async cleanup() {
+    validateUserScript(script: string): boolean {
+        // Check for dangerous patterns
+        const dangerousPatterns = [
+            /process/g,
+            /require/g,
+            /global/g,
+            /eval/g,
+            /Function/g,
+            /__proto__/g,
+            /constructor/g
+        ];
+
+        for (const pattern of dangerousPatterns) {
+            if (pattern.test(script)) {
+                throw new ScriptValidationError(`Forbidden pattern detected: ${pattern}`);
+            }
+        }
+        return true;
+    }
+
+    cleanup() {
         this.context.release()
         this.isolate.dispose()
     }
