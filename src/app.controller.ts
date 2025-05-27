@@ -14,7 +14,7 @@ export class AppController {
   }
 
   @Post('config')
-  async saveConfig(configDto: ConfigDto) {
+  async saveConfig(@Body() configDto: ConfigDto) {
     return this.appService.saveConfig(configDto)
   }
 

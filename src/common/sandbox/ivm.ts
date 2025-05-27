@@ -1,4 +1,5 @@
 import IsolatedVM, { type Reference, Isolate } from "isolated-vm";
+import { ScriptValidationError } from "../errors/errors";
 
 export class SandBox {
     private readonly isolate: IsolatedVM.Isolate;
@@ -26,7 +27,6 @@ export class SandBox {
         const result = await this.context.eval(call, {
             reference: true
         })
-
         return result
     }
 
@@ -34,7 +34,7 @@ export class SandBox {
         // Check for dangerous patterns
         const dangerousPatterns = [
             /process/g,
-            /require/g,
+            /require\(/g,
             /global/g,
             /eval/g,
             /Function/g,

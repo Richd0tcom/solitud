@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SandBox } from './common/sandbox/ivm';
 import { ConfigDto } from './common/types/config.dto';
+import { ScriptValidationError } from './common/errors/errors';
 
 @Injectable()
 export class AppService {
@@ -45,7 +46,9 @@ export class AppService {
       const script = await sb.compileUserScript(config.customValidation);
       await sb.runScript(script);
 
-      const result = await sb.evaluateScript(`(${config.customValidation})(${JSON.stringify(request)})`);
+      const ref = await sb.evaluateScript(`(${config.customValidation})({body: ${JSON.stringify(body)}})`);
+      const actualValue = await ref.copy()
+      return actualValue
     } catch (error) {
       throw new Error(`Error running config: ${error.message}`);
     } finally {
