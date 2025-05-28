@@ -1,5 +1,6 @@
 import IsolatedVM, { type Reference, Isolate } from "isolated-vm";
 import { ScriptValidationError } from "../errors/errors";
+import { ValidationResult } from "../types/config.dto";
 
 export class SandBox {
     private readonly isolate: IsolatedVM.Isolate;
@@ -23,11 +24,30 @@ export class SandBox {
         })
     }
 
+       private validateReturnStructure(result: unknown): ValidationResult {
+        if (!result || typeof result !== 'object') {
+            throw new Error('Function must return an object');
+        }
+
+        const ret = result as Record<string, unknown>;
+
+        if (!('isValid' in ret) || typeof ret.isValid !== 'boolean') {
+            throw new Error('Return object must contain "isValid" field of type boolean');
+        }
+
+        if (!('message' in ret) || typeof ret.message !== 'string') {
+            throw new Error('Return object must contain "message" field of type string');
+        }
+
+        return ret as unknown as ValidationResult;
+    }
+
     async evaluateScript(call: string) {
         const result = await this.context.eval(call, {
             reference: true
         })
-        return result
+        const value = await result.copy();
+        return this.validateReturnStructure(value);
     }
 
     validateUserScript(script: string): boolean {

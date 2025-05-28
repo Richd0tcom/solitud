@@ -19,3 +19,8 @@ export class ConfigDto {
 export enum RequestMethod {
     POST="POST"
 }
+
+export interface ValidationResult {
+    isValid: boolean;
+    message: string;
+}

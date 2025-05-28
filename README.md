@@ -1,98 +1,101 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Solitud: Isolated User Script Execution Proof of Concept
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Solitud** is a proof-of-concept API project designed to safely execute user-defined validation scripts in a secure, isolated environment. It leverages [isolated-vm](https://github.com/laverdet/isolated-vm) to sandbox user code, preventing malicious access to the host system. This project demonstrates how to store, retrieve, and run user-provided validation logic against arbitrary request objects, with strong validation and security controls.
 
-## Description
+## Features
+- **/config**: Save a user-defined validation script (config) with a unique name.
+- **/api/:name**: Retrieve and execute a saved config, validating a user-provided object against the stored script.
+- **Sandboxed Execution**: All user scripts are run in a memory-limited, isolated VM context.
+- **Script Validation**: Scripts are checked for dangerous patterns before execution.
+- **Custom Validation Logic**: Users can define their own validation logic as JavaScript functions.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## How It Works
+1. **Save Config**: POST to `/config` with a config object containing a name and a `customValidation` function as a string.
+2. **Run Config**: POST to `/api/:name` with a request body. The server retrieves the config by name and runs the validation function against the provided object in isolation.
 
-## Project setup
+## API Endpoints
 
-```bash
-$ npm install
-```
+- Base URL: `https://solitud.onrender.com`
 
-## Compile and run the project
+### 1. Save Config
+- **Endpoint:** `POST /config`
+- **Body:**
+  ```json
+  {
+    "name": "myConfigName",
+    "customValidation": "function({body}) { return { isValid: body.age > 18, message: body.age > 18 ? 'OK' : 'Too young' }; }"
+  }
+  ```
+- **Response:**
+  - `200 OK` with success message, or error if validation fails.
 
-```bash
-# development
-$ npm run start
+### 2. Run Config
+- **Endpoint:** `POST /api/:name`
+- **Params:**
+  - `name`: The name of the config to use.
+- **Body:**
+  ```json
+  {
+    "request": {
+      "age": 21
+    }
+  }
+  ```
+- **Response:**
+  - The result of the validation function, e.g. `{ "isValid": true, "message": "OK" }`
 
-# watch mode
-$ npm run start:dev
+## Example Usage
 
-# production mode
-$ npm run start:prod
-```
+1. **Save a Config:**
+   ```bash
+   curl -X POST http://localhost:3000/config \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "name": "ageCheck",
+       "customValidation": "function({body}) { return { isValid: body.age > 18, message: body.age > 18 ? 'OK' : 'Too young' }; }"
+     }'
+   ```
 
-## Run tests
+2. **Run the Config:**
+   ```bash
+   curl -X POST http://localhost:3000/api/ageCheck \
+     -H 'Content-Type: application/json' \
+     -d '{ "request": { "age": 17 } }'
+   # Response: { "isValid": false, "message": "Too young" }
+   ```
 
-```bash
-# unit tests
-$ npm run test
+## Security Considerations
+- **Sandboxing:** All user scripts are executed in a memory-limited, isolated-vm context.
+- **Script Validation:** Scripts are checked for forbidden patterns (e.g., `process`, `require`, `global`, `eval`, etc.) before being accepted.
+- **No File/Process Access:** User code cannot access the filesystem, environment variables, or Node.js internals.
+- **Timeouts:** Script execution is time-limited to prevent infinite loops.
 
-# e2e tests
-$ npm run test:e2e
+## Development & Running Locally
 
-# test coverage
-$ npm run test:cov
-```
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Start the server:**
+   ```bash
+   npm run start:dev
+   ```
+3. **API will be available at:** `http://localhost:3000` or `https://solitud.onrender.com`
 
-## Deployment
+## Project Structure
+- `src/app.controller.ts` — API endpoints
+- `src/app.service.ts` — Business logic and sandbox integration
+- `src/common/sandbox/ivm.ts` — Isolated-vm sandbox wrapper
+- `src/common/types/config.dto.ts` — Config DTO definition
+- `src/common/errors/errors.ts` — Custom error classes
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Extending This Project
+- Add persistent storage for configs (currently in-memory only).
+- Enhance script validation for more complex threat detection.
+- Add authentication/authorization for config management.
+- Support more complex validation workflows.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Disclaimer
+This project is a proof of concept and **not production-ready**. Do not use as-is for untrusted user code in production environments without further hardening and review.
