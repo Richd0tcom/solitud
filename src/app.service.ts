@@ -54,6 +54,9 @@ export class AppService {
   
       return this.predefinedNextActionFunction(actualValue);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        throw new ValidationError(`${error.message}`);
+      }
       throw new ScriptExecutionException(`${error.message}`);
     } finally {
       sb.cleanup();
